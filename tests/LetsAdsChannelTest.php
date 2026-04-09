@@ -26,7 +26,7 @@ it('sends sms via LetsAdsChannel for notifiable model', function () {
         }))
         ->willReturn(new SendSmsResponse('Complete', 'queued', ['1']));
 
-    $channel = new LetsAdsChannel($client, new NullLogger(), false);
+    $channel = new LetsAdsChannel($client, new NullLogger, false);
 
     $notifiable = new class extends Model
     {
@@ -71,7 +71,7 @@ it('resolves phone using full channel class name', function () {
         }))
         ->willReturn(new SendSmsResponse('Complete', 'queued', ['1']));
 
-    $channel = new LetsAdsChannel($client, new NullLogger(), false);
+    $channel = new LetsAdsChannel($client, new NullLogger, false);
 
     $notifiable = new class extends Model
     {
@@ -136,7 +136,7 @@ it('sends sms for anonymous notifiable route', function () {
 });
 
 it('throws when notification does not implement toLetsAds', function () {
-    $channel = new LetsAdsChannel($this->createMock(LetsAdsClient::class), new NullLogger(), false);
+    $channel = new LetsAdsChannel($this->createMock(LetsAdsClient::class), new NullLogger, false);
 
     $notifiable = new class extends Model
     {
@@ -155,7 +155,7 @@ it('throws when notification does not implement toLetsAds', function () {
 })->throws(InvalidArgumentException::class, 'Notification must implement toLetsAds() method.');
 
 it('throws when toLetsAds does not return Sms instance', function () {
-    $channel = new LetsAdsChannel($this->createMock(LetsAdsClient::class), new NullLogger(), false);
+    $channel = new LetsAdsChannel($this->createMock(LetsAdsClient::class), new NullLogger, false);
 
     $notifiable = new class extends Model
     {
@@ -184,7 +184,7 @@ it('throws when toLetsAds does not return Sms instance', function () {
 })->throws(InvalidArgumentException::class, 'Notification::toLetsAds() must return an instance of '.Sms::class.'.');
 
 it('throws when phone cannot be resolved from notifiable', function () {
-    $channel = new LetsAdsChannel($this->createMock(LetsAdsClient::class), new NullLogger(), false);
+    $channel = new LetsAdsChannel($this->createMock(LetsAdsClient::class), new NullLogger, false);
 
     $notifiable = new class extends Model
     {

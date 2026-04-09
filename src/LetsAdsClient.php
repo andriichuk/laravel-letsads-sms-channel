@@ -131,7 +131,7 @@ class LetsAdsClient
         }
 
         $smsIds = [];
-        
+
         foreach ($response->sms_id ?? [] as $smsId) {
             $smsIds[] = (string) $smsId;
         }
