@@ -7,8 +7,9 @@ use Andriichuk\LetsAdsSmsChannel\Sms;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Notifications\Notification;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification as NotificationFacade;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 it('sends sms via LetsAdsChannel for notifiable model', function () {
     $client = $this->createMock(LetsAdsClient::class);
@@ -25,7 +26,7 @@ it('sends sms via LetsAdsChannel for notifiable model', function () {
         }))
         ->willReturn(new SendSmsResponse('Complete', 'queued', ['1']));
 
-    $channel = new LetsAdsChannel($client);
+    $channel = new LetsAdsChannel($client, new NullLogger(), false);
 
     $notifiable = new class extends Model
     {
@@ -70,7 +71,7 @@ it('resolves phone using full channel class name', function () {
         }))
         ->willReturn(new SendSmsResponse('Complete', 'queued', ['1']));
 
-    $channel = new LetsAdsChannel($client);
+    $channel = new LetsAdsChannel($client, new NullLogger(), false);
 
     $notifiable = new class extends Model
     {
@@ -135,7 +136,7 @@ it('sends sms for anonymous notifiable route', function () {
 });
 
 it('throws when notification does not implement toLetsAds', function () {
-    $channel = new LetsAdsChannel($this->createMock(LetsAdsClient::class));
+    $channel = new LetsAdsChannel($this->createMock(LetsAdsClient::class), new NullLogger(), false);
 
     $notifiable = new class extends Model
     {
@@ -154,7 +155,7 @@ it('throws when notification does not implement toLetsAds', function () {
 })->throws(InvalidArgumentException::class, 'Notification must implement toLetsAds() method.');
 
 it('throws when toLetsAds does not return Sms instance', function () {
-    $channel = new LetsAdsChannel($this->createMock(LetsAdsClient::class));
+    $channel = new LetsAdsChannel($this->createMock(LetsAdsClient::class), new NullLogger(), false);
 
     $notifiable = new class extends Model
     {
@@ -183,7 +184,7 @@ it('throws when toLetsAds does not return Sms instance', function () {
 })->throws(InvalidArgumentException::class, 'Notification::toLetsAds() must return an instance of '.Sms::class.'.');
 
 it('throws when phone cannot be resolved from notifiable', function () {
-    $channel = new LetsAdsChannel($this->createMock(LetsAdsClient::class));
+    $channel = new LetsAdsChannel($this->createMock(LetsAdsClient::class), new NullLogger(), false);
 
     $notifiable = new class extends Model
     {
@@ -212,8 +213,6 @@ it('throws when phone cannot be resolved from notifiable', function () {
 })->throws(InvalidArgumentException::class, 'Could not determine recipient phone number for LetsAds SMS notification.');
 
 it('logs response body when configured', function () {
-    config()->set('services.letsads.log_response', true);
-
     $client = $this->createMock(LetsAdsClient::class);
     $response = new SendSmsResponse(
         name: 'Complete',
@@ -225,8 +224,9 @@ it('logs response body when configured', function () {
         ->method('sendSms')
         ->willReturn($response);
 
-    Log::shouldReceive('info')
-        ->once()
+    $logger = $this->createMock(LoggerInterface::class);
+    $logger->expects($this->once())
+        ->method('info')
         ->with('LetsAds SMS response', [
             'response' => [
                 'name' => 'Complete',
@@ -235,7 +235,7 @@ it('logs response body when configured', function () {
             ],
         ]);
 
-    $channel = new LetsAdsChannel($client);
+    $channel = new LetsAdsChannel($client, $logger, true);
 
     $notifiable = new class extends Model
     {

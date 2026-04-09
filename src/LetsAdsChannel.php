@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace Andriichuk\LetsAdsSmsChannel;
 
+use Illuminate\Container\Attributes\Config;
 use Illuminate\Notifications\Notification;
-use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
+use Psr\Log\LoggerInterface;
 
 final readonly class LetsAdsChannel
 {
     public function __construct(
         private LetsAdsClient $letsAdsClient,
+        private LoggerInterface $logger,
+        #[Config('services.letsads.log_response')]
+        private bool $logResponse = false,
     ) {}
 
     public function send(object $notifiable, Notification $notification): void
@@ -44,8 +48,8 @@ final readonly class LetsAdsChannel
 
         $response = $this->letsAdsClient->sendSms($data);
 
-        if ((bool) config('services.letsads.log_response', false)) {
-            Log::info('LetsAds SMS response', [
+        if ($this->logResponse) {
+            $this->logger->info('LetsAds SMS response', [
                 'response' => $response->toArray(),
             ]);
         }
