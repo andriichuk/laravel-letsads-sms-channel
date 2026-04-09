@@ -2,12 +2,13 @@
 
 use Andriichuk\LetsAdsSmsChannel\LetsAdsChannel;
 use Andriichuk\LetsAdsSmsChannel\LetsAdsClient;
+use Andriichuk\LetsAdsSmsChannel\SendSmsResponse;
 use Andriichuk\LetsAdsSmsChannel\Sms;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification as NotificationFacade;
-use Psr\Http\Message\ResponseInterface;
 
 it('sends sms via LetsAdsChannel for notifiable model', function () {
     $client = $this->createMock(LetsAdsClient::class);
@@ -22,7 +23,7 @@ it('sends sms via LetsAdsChannel for notifiable model', function () {
 
             return true;
         }))
-        ->willReturn($this->createMock(ResponseInterface::class));
+        ->willReturn(new SendSmsResponse('Complete', 'queued', ['1']));
 
     $channel = new LetsAdsChannel($client);
 
@@ -67,7 +68,7 @@ it('resolves phone using full channel class name', function () {
 
             return true;
         }))
-        ->willReturn($this->createMock(ResponseInterface::class));
+        ->willReturn(new SendSmsResponse('Complete', 'queued', ['1']));
 
     $channel = new LetsAdsChannel($client);
 
@@ -114,7 +115,7 @@ it('sends sms for anonymous notifiable route', function () {
 
             return true;
         }))
-        ->willReturn($this->createMock(ResponseInterface::class));
+        ->willReturn(new SendSmsResponse('Complete', 'queued', ['1']));
 
     $this->app->instance(LetsAdsClient::class, $client);
 
@@ -209,3 +210,55 @@ it('throws when phone cannot be resolved from notifiable', function () {
 
     $channel->send($notifiable, $notification);
 })->throws(InvalidArgumentException::class, 'Could not determine recipient phone number for LetsAds SMS notification.');
+
+it('logs response body when configured', function () {
+    config()->set('services.letsads.log_response', true);
+
+    $client = $this->createMock(LetsAdsClient::class);
+    $response = new SendSmsResponse(
+        name: 'Complete',
+        description: '1 messages put into queue',
+        smsIds: ['633217'],
+    );
+
+    $client->expects($this->once())
+        ->method('sendSms')
+        ->willReturn($response);
+
+    Log::shouldReceive('info')
+        ->once()
+        ->with('LetsAds SMS response', [
+            'response' => [
+                'name' => 'Complete',
+                'description' => '1 messages put into queue',
+                'sms_ids' => ['633217'],
+            ],
+        ]);
+
+    $channel = new LetsAdsChannel($client);
+
+    $notifiable = new class extends Model
+    {
+        use Notifiable;
+
+        public function routeNotificationForLetsAds(): string
+        {
+            return '+123456789';
+        }
+    };
+
+    $notification = new class extends Notification
+    {
+        public function via($notifiable): array
+        {
+            return ['letsads'];
+        }
+
+        public function toLetsAds($notifiable): Sms
+        {
+            return new Sms(text: 'Test message');
+        }
+    };
+
+    $channel->send($notifiable, $notification);
+});

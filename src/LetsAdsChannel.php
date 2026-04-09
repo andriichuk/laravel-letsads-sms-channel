@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Andriichuk\LetsAdsSmsChannel;
 
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 
 final readonly class LetsAdsChannel
@@ -41,7 +42,13 @@ final readonly class LetsAdsChannel
             );
         }
 
-        $this->letsAdsClient->sendSms($data);
+        $response = $this->letsAdsClient->sendSms($data);
+
+        if ((bool) config('services.letsads.log_response', false)) {
+            Log::info('LetsAds SMS response', [
+                'response' => $response->toArray(),
+            ]);
+        }
     }
 
     private function resolvePhone(object $notifiable): string

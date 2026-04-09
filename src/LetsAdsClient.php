@@ -6,7 +6,6 @@ namespace Andriichuk\LetsAdsSmsChannel;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\RequestOptions;
-use Psr\Http\Message\ResponseInterface;
 
 /**
  * @see https://letsads.com/api-sms-povidomlennia
@@ -31,7 +30,7 @@ class LetsAdsClient
     /**
      * @param  array{text: string, phone: string, from?: string|null}  $parameters
      */
-    public function sendSms(array $parameters): ResponseInterface
+    public function sendSms(array $parameters): SendSmsResponse
     {
         $text = $parameters['text'];
         $phone = self::normalizePhone($parameters['phone']);
@@ -39,12 +38,28 @@ class LetsAdsClient
 
         $xml = $this->buildSendXml($from, $text, $phone);
 
-        return $this->httpClient->post('', [
+        $response = $this->httpClient->post('', [
             RequestOptions::BODY => $xml,
             RequestOptions::HEADERS => [
                 'Content-Type' => 'application/xml; charset=UTF-8',
             ],
         ]);
+
+        return $this->parseSendSmsResponse((string) $response->getBody());
+    }
+
+    public function getBalance(): BalanceResponse
+    {
+        $xml = $this->buildBalanceXml();
+
+        $response = $this->httpClient->post('', [
+            RequestOptions::BODY => $xml,
+            RequestOptions::HEADERS => [
+                'Content-Type' => 'application/xml; charset=UTF-8',
+            ],
+        ]);
+
+        return $this->parseBalanceResponse((string) $response->getBody());
     }
 
     public static function normalizePhone(string $phone): string
@@ -71,5 +86,60 @@ class LetsAdsClient
             .'<recipient>'.$this->escape($recipient).'</recipient>'
             .'</message>'
             .'</request>';
+    }
+
+    private function buildBalanceXml(): string
+    {
+        return '<?xml version="1.0" encoding="UTF-8"?>'
+            .'<request>'
+            .'<auth>'
+            .'<login>'.$this->escape($this->login).'</login>'
+            .'<password>'.$this->escape($this->password).'</password>'
+            .'</auth>'
+            .'<balance />'
+            .'</request>';
+    }
+
+    private function parseBalanceResponse(string $xml): BalanceResponse
+    {
+        $response = simplexml_load_string($xml);
+
+        if ($response === false) {
+            throw new \RuntimeException('Could not parse LetsAds balance response XML.');
+        }
+
+        return new BalanceResponse(
+            name: (string) ($response->name ?? ''),
+            description: (string) ($response->description ?? ''),
+            currency: (string) ($response->currency ?? ''),
+        );
+    }
+
+    private function parseSendSmsResponse(string $xml): SendSmsResponse
+    {
+        $response = simplexml_load_string($xml);
+
+        if ($response === false) {
+            throw new \RuntimeException('Could not parse LetsAds send SMS response XML.');
+        }
+
+        $name = (string) ($response->name ?? '');
+        $description = (string) ($response->description ?? '');
+
+        if (strcasecmp($name, 'Error') === 0) {
+            throw LetsAdsApiException::fromResponse($name, $description);
+        }
+
+        $smsIds = [];
+        
+        foreach ($response->sms_id ?? [] as $smsId) {
+            $smsIds[] = (string) $smsId;
+        }
+
+        return new SendSmsResponse(
+            name: $name,
+            description: $description,
+            smsIds: $smsIds,
+        );
     }
 }

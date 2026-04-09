@@ -37,6 +37,7 @@ return [
         'login' => env('LETSADS_SMS_LOGIN'),
         'password' => env('LETSADS_SMS_PASSWORD'),
         'from' => env('LETSADS_SMS_FROM'),
+        'log_response' => env('LETSADS_SMS_LOG_RESPONSE', false),
     ],
 ];
 ```
@@ -49,6 +50,7 @@ Then add the corresponding environment variables to your `.env`:
 LETSADS_SMS_LOGIN="380501234567"
 LETSADS_SMS_PASSWORD="your-api-password"
 LETSADS_SMS_FROM="Your Sender Name"
+LETSADS_SMS_LOG_RESPONSE=false
 ```
 
 ## Usage
