@@ -15,6 +15,8 @@ $user->notify(new Invitation());
 
 ## Installation
 
+**Requirements:** PHP 8.3+ and Laravel 11.x, 12.x, or 13.x.
+
 You can install the package via composer:
 
 ```bash
